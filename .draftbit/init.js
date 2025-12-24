@@ -28,8 +28,14 @@ if (Platform.OS === "ios") {
 }
 
 if (Platform.OS === "web" && typeof window !== "undefined") {
-  const { Child } = require("@draftbit/iframe-element-picker");
-  Child.init("https://next.draftbit.com", process.env.EXPO_PUBLIC_PROJECT_PATH, false);
+  // Only load Draftbit iframe picker in sandbox environment
+  try {
+    const { Child } = require("@draftbit/iframe-element-picker");
+    Child.init("https://next.draftbit.com", process.env.EXPO_PUBLIC_PROJECT_PATH, false);
+  } catch (e) {
+    // Draftbit iframe picker not available (production build) - that's okay
+    console.log("Running in production mode (Draftbit sandbox tools not available)");
+  }
 
   // Initialize window.previewTheme from URL parameter or default to light theme
   const urlParams = new URLSearchParams(window.location.search);
@@ -37,60 +43,65 @@ if (Platform.OS === "web" && typeof window !== "undefined") {
   window.previewTheme = themeFromUrl === "dark" ? "dark" : "light";
 
   // On web, logs are only sent to the browser console, this sends the logs to the terminal as well.
-  // Uses the Metro HMRClient to send the logs to the terminal
+  // Uses the Metro HMRClient to send the logs to the terminal (only in development/sandbox)
   // Based on https://github.com/expo/expo/blob/main/packages/expo/src/async-require/hmr.ts
-  const MetroHMRClient = require("metro-runtime/src/modules/HMRClient");
-  const serverScheme = window.location.protocol === "https:" ? "wss" : "ws";
-  const hmrClient = new MetroHMRClient(`${serverScheme}://${window.location.host}/hot`);
+  try {
+    const MetroHMRClient = require("metro-runtime/src/modules/HMRClient");
+    const serverScheme = window.location.protocol === "https:" ? "wss" : "ws";
+    const hmrClient = new MetroHMRClient(`${serverScheme}://${window.location.host}/hot`);
 
-  const logLevels = [
-    "trace",
-    "info",
-    "warn",
-    "error",
-    "log",
-    "group",
-    "groupCollapsed",
-    "groupEnd",
-    "debug",
-  ];
+    const logLevels = [
+      "trace",
+      "info",
+      "warn",
+      "error",
+      "log",
+      "group",
+      "groupCollapsed",
+      "groupEnd",
+      "debug",
+    ];
 
-  for (const level of logLevels) {
-    const original = console[level];
-    const updated = (...args) => {
-      original.apply(console, args);
-      hmrClient.send(
-        JSON.stringify({
-          type: "log",
-          level: level,
-          platform: "web",
-          mode: "BRIDGE",
-          data: args,
-        }),
-      );
+    for (const level of logLevels) {
+      const original = console[level];
+      const updated = (...args) => {
+        original.apply(console, args);
+        hmrClient.send(
+          JSON.stringify({
+            type: "log",
+            level: level,
+            platform: "web",
+            mode: "BRIDGE",
+            data: args,
+          }),
+        );
 
-      // Detect when lost connection to metro server and reload the page
-      if (
-        args.length > 0 &&
-        typeof args[0] === "string" &&
-        args[0].includes("Disconnected from Metro")
-      ) {
-        window.location.reload();
-      }
+        // Detect when lost connection to metro server and reload the page
+        if (
+          args.length > 0 &&
+          typeof args[0] === "string" &&
+          args[0].includes("Disconnected from Metro")
+        ) {
+          window.location.reload();
+        }
+      };
+      console[level] = updated;
+    }
+
+    // Also log uncaught errors to have them show up in the terminal as well
+    window.onerror = function myErrorHandler(errorMsg) {
+      console.error(errorMsg);
+      return true;
     };
-    console[level] = updated;
+
+    window.onunhandledrejection = function myErrorHandler(errorEvent) {
+      console.error(errorEvent.reason?.stack || errorEvent.reason || errorEvent);
+      return true;
+    };
+  } catch (e) {
+    // Metro HMR not available (production build) - that's okay
+    console.log("Metro HMR not available in production build");
   }
-
-  // Also log uncaught errors to have them show up in the terminal as well
-  window.onerror = function myErrorHandler(errorMsg) {
-    console.error(errorMsg);
-    return true;
-  };
-
-  window.onunhandledrejection = function myErrorHandler(errorEvent) {
-    console.error(errorEvent.reason?.stack || errorEvent.reason || errorEvent);
-    return true;
-  };
 
   // Wrap window.matchMedia to intercept queries to light/dark mode, so we can control it.
   const originalMatchMedia = window.matchMedia;

@@ -15,8 +15,6 @@
     "build": "expo export -p web"
   },
   "dependencies": {
-    "@draftbit/babel-plugin-inject-jsx-source": "file:./@draftbit/babel-plugin-inject-jsx-source",
-    "@draftbit/iframe-element-picker": "file:./@draftbit/iframe-element-picker",
     "@expo-google-fonts/inter": "^0.4.1",
     "@expo/vector-icons": "^14.1.0",
     "@react-native-async-storage/async-storage": "2.1.2",
@@ -81,7 +79,9 @@
     "react-native-svg": "15.11.2",
     "react-native-web": "^0.20.0",
     "tailwind-merge": "^3.3.1",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "@draftbit/babel-plugin-inject-jsx-source": "file:./@draftbit/babel-plugin-inject-jsx-source",
+    "@draftbit/iframe-element-picker": "file:./@draftbit/iframe-element-picker"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
